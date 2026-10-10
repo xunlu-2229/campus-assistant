@@ -4,7 +4,7 @@
  *  - CDN 资源（Chart.js/XLSX）：优先缓存，失败走网络
  *  - 其他请求：优先网络，失败回退缓存
  */
-var CACHE_VERSION = 'gcsa-v4.4-20261010-rename';
+var CACHE_VERSION = 'gcsa-v4.5-20261010-ghpages';
 var APP_SHELL = [
   './',
   './index.html',
@@ -13,6 +13,7 @@ var APP_SHELL = [
   './js/app.js',
   './js/chart.js',
   './js/storage.js',
+  './js/theme.js',
   './js/schedule.js',
   './js/campus.js',
   './js/tools.js',
