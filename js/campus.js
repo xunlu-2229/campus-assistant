@@ -500,10 +500,15 @@
     if (!m) { createLifeGuideModal(); m = document.getElementById('lifeGuideModal'); }
     document.getElementById('lifeGuideTitle').textContent = t.title;
     document.getElementById('lifeGuideBody').innerHTML =
-      '<p style="margin:6px 0">「' + esc(t.title) + '」未开放网页唤起协议，浏览器无法一键打开 App，所以不直接跳转。</p>' +
-      '<p style="margin:6px 0"><b>已安装？</b> 返回手机桌面，打开「' + esc(t.short || t.title) + '」App，点「扫一扫」或输入设备码即可使用。</p>' +
-      '<p style="margin:6px 0"><b>未安装？</b> 点下方按钮前往应用市场下载：</p>' +
-      '<div style="margin-top:12px"><a class="btn" href="' + esc(t.url) + '" target="_blank" rel="noopener">前往应用市场下载</a></div>';
+      '<p style="margin:4px 0">「' + esc(t.title) + '」没有开放"网页唤起"协议，任何网页都无法一键打开它（不是本工具的限制）。</p>' +
+      '<div style="margin:10px 0;padding:10px 12px;border:1px solid rgba(37,99,235,.25);border-radius:10px;background:rgba(37,99,235,.06)">' +
+      '<b>✅ 已安装？直接这样用</b>' +
+      '<p style="margin:6px 0 0">返回<b>手机桌面</b>，打开「' + esc(t.short || t.title) + '」App：</p>' +
+      '<p style="margin:4px 0 0">· 洗衣 → 点「扫一扫」扫洗衣机二维码</p>' +
+      '<p style="margin:4px 0 0">· 洗浴 / 饮水 → 输入设备号或使用码</p>' +
+      '</div>' +
+      '<p style="margin:6px 0"><b>📥 未安装或要重装？</b>点下方按钮去应用市场：</p>' +
+      '<div style="margin-top:10px"><a class="btn" href="' + esc(t.url) + '" target="_blank" rel="noopener">前往应用市场下载</a></div>';
     m.classList.add('active');
   }
   function closeLifeGuide() {
