@@ -23,7 +23,6 @@
     { id: 'spots', name: '生活点位', icon: '🏠', page: 'campus', sub: 'spots' },
     { id: 'map', name: '校园地图', icon: '🗺️', page: 'campus', sub: 'map' },
     { id: 'study', name: '学习跳转', icon: '📚', page: 'campus', sub: 'study' },
-    { id: 'life', name: '生活服务', icon: '🏪', page: 'campus', sub: 'life' },
     { id: 'tutorial', name: '软件教程', icon: '🧭', page: 'campus', sub: 'tutorial' },
     { id: 'schedule', name: '课表管理', icon: '📅', page: 'schedule', sub: null }
   ];
@@ -31,7 +30,7 @@
   QUICK_DEFS.forEach(function (d) { DEF_MAP[d.id] = d; });
 
   /* 默认启用项（首屏展示） */
-  var DEFAULT_ORDER = ['resistor', 'unit', 'rcrl', 'resonance', 'signal', 'code', 'labdata', 'gpa', 'countdown', 'components', 'life'];
+  var DEFAULT_ORDER = ['resistor', 'unit', 'rcrl', 'resonance', 'signal', 'code', 'labdata', 'gpa', 'countdown', 'components'];
 
   /* ===== 顺序存取（过滤已失效 id） ===== */
   function getOrder() {

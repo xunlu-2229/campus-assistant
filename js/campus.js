@@ -412,111 +412,8 @@
     reader.readAsText(file, 'utf-8');
   }
 
-  /* ================= 生活服务快捷（支付宝扫码/付款码唤起 + 网页版 + App 指引） ================= */
-  var KEY_LIFE = 'gcsa_life';
-  /* 默认快捷：alipays:// 与 weixin:// 为 App 唤起 scheme（手机已装对应 App 时点击直接打开） */
-  var DEFAULT_LIFE = [
-    { id: 'l1', icon: '🧮', title: '支付宝 · 扫一扫', desc: '唤起 App 扫码（洗衣/饮水/浴室通用）', url: 'alipays://platformapi/startapp?appId=20000056' },
-    { id: 'l2', icon: '💳', title: '支付宝 · 付款码', desc: '唤起 App 出示付款码', url: 'alipays://platformapi/startapp?appId=20000067' },
-    { id: 'l3', icon: '🔍', title: '支付宝 · 网页版', desc: '免 App 网页入口', url: 'https://www.alipay.com/' },
-    { id: 'l4', icon: '💬', title: '微信', desc: '唤起微信', url: 'weixin://' },
-    { id: 'l5', icon: '🛒', title: '淘宝', desc: '网页版购物', url: 'https://www.taobao.com/' },
-    { id: 'l6', icon: '🐶', title: '京东', desc: '网页版购物', url: 'https://www.jd.com/' },
-    { id: 'l7', icon: '🍜', title: '美团外卖', desc: '网页版点餐', url: 'https://waimai.meituan.com/' },
-    { id: 'l8', icon: '🛵', title: '饿了么', desc: '网页版点餐', url: 'https://www.ele.me/' },
-    { id: 'l9', icon: '🧺', title: 'U净·校园洗衣', desc: '已装请桌面打开 U净 扫码；未装去应用市场', url: 'https://sj.qq.com/appdetail/com.midea.vm.washer', type: 'guide', short: 'U净' },
-    { id: 'l10', icon: '🚿', title: '云达人', desc: '已装请桌面打开云达人；未装去应用市场', url: 'https://www.tvmao.com/hmsoft/491191.html', type: 'guide', short: '云达人' }
-  ];
 
-  function getLife() { return App.Storage.get(KEY_LIFE, null); }
-  function setLife(v) { return App.Storage.set(KEY_LIFE, v); }
-
-  function renderLife() {
-    var list = getLife();
-    if (!list) { list = DEFAULT_LIFE.slice(); setLife(list); }
-    var box = document.getElementById('lifeList');
-    if (!box) return;
-    if (!list.length) {
-      box.innerHTML = '<div class="home-widget__empty">暂无快捷，点击"+ 添加快捷"</div>';
-      return;
-    }
-    box.innerHTML = list.map(function (t) {
-      return '<div class="link-card-wrap">' +
-        '<a class="link-card' + (t.type === 'guide' ? ' link-card--guide' : '') + '" href="' + esc(t.url) + '"' +
-        (t.type === 'guide' ? ' data-guide="1" data-id="' + esc(t.id) + '"' : '') +
-        ' target="_blank" rel="noopener">' +
-        '<div class="link-card__icon">' + (t.icon || '🔗') + '</div>' +
-        '<div>' + esc(t.title) + '</div><small>' + esc(t.desc || t.url) + '</small>' +
-        '</a>' +
-        '<span class="tutorial-item__del" data-lifedel="' + t.id + '" title="删除">×</span>' +
-        '</div>';
-    }).join('');
-    Array.prototype.forEach.call(box.querySelectorAll('[data-lifedel]'), function (el) {
-      el.addEventListener('click', function () {
-        setLife(getLife().filter(function (t) { return t.id !== el.getAttribute('data-lifedel'); }));
-        renderLife();
-      });
-    });
-    // type=guide 的卡片：拦截跳转，弹出"已装/未装"引导（App 无唤起协议，避免误入下载页）
-    Array.prototype.forEach.call(box.querySelectorAll('a.link-card[data-guide="1"]'), function (a) {
-      a.addEventListener('click', function (e) {
-        e.preventDefault();
-        var item = (getLife() || []).filter(function (t) { return t.id === a.getAttribute('data-id'); })[0];
-        if (item) showLifeGuide(item);
-      });
-    });
-  }
-
-  function addLife() {
-    var title = prompt('名称（如 支付宝·扫一扫）：', '');
-    if (!title) return;
-    var url = prompt('链接（App唤起 scheme 或网页地址）：', 'https://');
-    if (!url || url === 'https://') { alert('请输入有效链接'); return; }
-    var desc = prompt('说明（可选，回车跳过）：', '') || '';
-    var icon = prompt('图标 emoji（可选，回车默认 🔗）：', '🔗') || '🔗';
-    var list = getLife() || [];
-    list.push({ id: uid(), title: title.trim(), url: url.trim(), desc: desc.trim(), icon: icon.trim() });
-    setLife(list);
-    renderLife();
-  }
-
-  /* App 引导弹窗：U净/云达人等未开放网页唤起的 App，
-   * 点击卡片先说明"已装→桌面直接打开 / 未装→去应用市场"，避免误入下载页 */
-  function createLifeGuideModal() {
-    var m = document.createElement('div');
-    m.className = 'modal';
-    m.id = 'lifeGuideModal';
-    m.innerHTML = '<div class="modal__box">' +
-      '<h3 id="lifeGuideTitle"></h3>' +
-      '<div id="lifeGuideBody" style="line-height:1.7;color:var(--text, inherit)"></div>' +
-      '<div class="modal__actions"><button class="btn btn--ghost" id="btnLifeGuideClose">关闭</button></div>' +
-      '</div>';
-    document.body.appendChild(m);
-    m.addEventListener('click', function (e) { if (e.target === m) closeLifeGuide(); });
-    m.querySelector('#btnLifeGuideClose').addEventListener('click', closeLifeGuide);
-  }
-  function showLifeGuide(t) {
-    var m = document.getElementById('lifeGuideModal');
-    if (!m) { createLifeGuideModal(); m = document.getElementById('lifeGuideModal'); }
-    document.getElementById('lifeGuideTitle').textContent = t.title;
-    document.getElementById('lifeGuideBody').innerHTML =
-      '<p style="margin:4px 0">「' + esc(t.title) + '」没有开放"网页唤起"协议，任何网页都无法一键打开它（不是本工具的限制）。</p>' +
-      '<div style="margin:10px 0;padding:10px 12px;border:1px solid rgba(37,99,235,.25);border-radius:10px;background:rgba(37,99,235,.06)">' +
-      '<b>✅ 已安装？直接这样用</b>' +
-      '<p style="margin:6px 0 0">返回<b>手机桌面</b>，打开「' + esc(t.short || t.title) + '」App：</p>' +
-      '<p style="margin:4px 0 0">· 洗衣 → 点「扫一扫」扫洗衣机二维码</p>' +
-      '<p style="margin:4px 0 0">· 洗浴 / 饮水 → 输入设备号或使用码</p>' +
-      '</div>' +
-      '<p style="margin:6px 0"><b>📥 未安装或要重装？</b>点下方按钮去应用市场：</p>' +
-      '<div style="margin-top:10px"><a class="btn" href="' + esc(t.url) + '" target="_blank" rel="noopener">前往应用市场下载</a></div>';
-    m.classList.add('active');
-  }
-  function closeLifeGuide() {
-    var m = document.getElementById('lifeGuideModal');
-    if (m) m.classList.remove('active');
-  }
-
-  /* ================= 弹窗（添加点位） ================= */
+  /* ===================== 弹窗（添加点位） ================= */
   function openModal() {
     document.getElementById('spotName').value = '';
     document.getElementById('spotTime').value = '';
@@ -596,15 +493,6 @@
       e.target.value = ''; // 清空以便重复导入同一文件
     });
 
-    // 生活服务快捷
-    renderLife();
-    document.getElementById('btnAddLife').addEventListener('click', addLife);
-    document.getElementById('btnResetLife').addEventListener('click', function () {
-      if (confirm('恢复到默认生活快捷列表？你自定义添加的条目将被清除。')) {
-        setLife(DEFAULT_LIFE.slice());
-        renderLife();
-      }
-    });
   }
 
   window.App.campus = { init: init, render: render, renderMap: renderMap, renderTut: renderTut, mergeTutList: mergeTutList };
