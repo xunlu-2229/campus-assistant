@@ -424,8 +424,8 @@
     { id: 'l6', icon: '🐶', title: '京东', desc: '网页版购物', url: 'https://www.jd.com/' },
     { id: 'l7', icon: '🍜', title: '美团外卖', desc: '网页版点餐', url: 'https://waimai.meituan.com/' },
     { id: 'l8', icon: '🛵', title: '饿了么', desc: '网页版点餐', url: 'https://www.ele.me/' },
-    { id: 'l9', icon: '🧺', title: 'U净·校园洗衣', desc: '美的校园洗衣 App（未安装则跳下载页）', url: 'https://sj.qq.com/appdetail/com.midea.vm.washer' },
-    { id: 'l10', icon: '🚿', title: '云达人', desc: '校园生活 App：浴室/开水/洗衣（下载指引页）', url: 'https://www.tvmao.com/hmsoft/491191.html' }
+    { id: 'l9', icon: '🧺', title: 'U净·校园洗衣', desc: '已装请桌面打开 U净 扫码；未装去应用市场', url: 'https://sj.qq.com/appdetail/com.midea.vm.washer', type: 'guide', short: 'U净' },
+    { id: 'l10', icon: '🚿', title: '云达人', desc: '已装请桌面打开云达人；未装去应用市场', url: 'https://www.tvmao.com/hmsoft/491191.html', type: 'guide', short: '云达人' }
   ];
 
   function getLife() { return App.Storage.get(KEY_LIFE, null); }
@@ -442,7 +442,9 @@
     }
     box.innerHTML = list.map(function (t) {
       return '<div class="link-card-wrap">' +
-        '<a class="link-card" href="' + esc(t.url) + '" target="_blank" rel="noopener">' +
+        '<a class="link-card' + (t.type === 'guide' ? ' link-card--guide' : '') + '" href="' + esc(t.url) + '"' +
+        (t.type === 'guide' ? ' data-guide="1" data-id="' + esc(t.id) + '"' : '') +
+        ' target="_blank" rel="noopener">' +
         '<div class="link-card__icon">' + (t.icon || '🔗') + '</div>' +
         '<div>' + esc(t.title) + '</div><small>' + esc(t.desc || t.url) + '</small>' +
         '</a>' +
@@ -453,6 +455,14 @@
       el.addEventListener('click', function () {
         setLife(getLife().filter(function (t) { return t.id !== el.getAttribute('data-lifedel'); }));
         renderLife();
+      });
+    });
+    // type=guide 的卡片：拦截跳转，弹出"已装/未装"引导（App 无唤起协议，避免误入下载页）
+    Array.prototype.forEach.call(box.querySelectorAll('a.link-card[data-guide="1"]'), function (a) {
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        var item = (getLife() || []).filter(function (t) { return t.id === a.getAttribute('data-id'); })[0];
+        if (item) showLifeGuide(item);
       });
     });
   }
@@ -468,6 +478,37 @@
     list.push({ id: uid(), title: title.trim(), url: url.trim(), desc: desc.trim(), icon: icon.trim() });
     setLife(list);
     renderLife();
+  }
+
+  /* App 引导弹窗：U净/云达人等未开放网页唤起的 App，
+   * 点击卡片先说明"已装→桌面直接打开 / 未装→去应用市场"，避免误入下载页 */
+  function createLifeGuideModal() {
+    var m = document.createElement('div');
+    m.className = 'modal';
+    m.id = 'lifeGuideModal';
+    m.innerHTML = '<div class="modal__box">' +
+      '<h3 id="lifeGuideTitle"></h3>' +
+      '<div id="lifeGuideBody" style="line-height:1.7;color:var(--text, inherit)"></div>' +
+      '<div class="modal__actions"><button class="btn btn--ghost" id="btnLifeGuideClose">关闭</button></div>' +
+      '</div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', function (e) { if (e.target === m) closeLifeGuide(); });
+    m.querySelector('#btnLifeGuideClose').addEventListener('click', closeLifeGuide);
+  }
+  function showLifeGuide(t) {
+    var m = document.getElementById('lifeGuideModal');
+    if (!m) { createLifeGuideModal(); m = document.getElementById('lifeGuideModal'); }
+    document.getElementById('lifeGuideTitle').textContent = t.title;
+    document.getElementById('lifeGuideBody').innerHTML =
+      '<p style="margin:6px 0">「' + esc(t.title) + '」未开放网页唤起协议，浏览器无法一键打开 App，所以不直接跳转。</p>' +
+      '<p style="margin:6px 0"><b>已安装？</b> 返回手机桌面，打开「' + esc(t.short || t.title) + '」App，点「扫一扫」或输入设备码即可使用。</p>' +
+      '<p style="margin:6px 0"><b>未安装？</b> 点下方按钮前往应用市场下载：</p>' +
+      '<div style="margin-top:12px"><a class="btn" href="' + esc(t.url) + '" target="_blank" rel="noopener">前往应用市场下载</a></div>';
+    m.classList.add('active');
+  }
+  function closeLifeGuide() {
+    var m = document.getElementById('lifeGuideModal');
+    if (m) m.classList.remove('active');
   }
 
   /* ================= 弹窗（添加点位） ================= */
