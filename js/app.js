@@ -80,8 +80,28 @@
     });
   }
 
+  /* ===== 内置浏览器检测：微信/QQ 内打开会拦截 App 唤起与安装，给醒目提示 ===== */
+  function setupEmbeddedTip() {
+    var ua = navigator.userAgent;
+    var isWeixin = /MicroMessenger/i.test(ua);
+    var isQQ = /QQ\//i.test(ua);
+    if (!isWeixin && !isQQ) return;
+    var name = isWeixin ? '微信' : 'QQ';
+    var tip = document.createElement('div');
+    tip.id = 'embeddedBrowserTip';
+    tip.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#f59e0b;color:#fff;' +
+      'padding:10px 14px;font-size:14px;text-align:center;line-height:1.5;box-shadow:0 2px 8px rgba(0,0,0,.2)';
+    tip.innerHTML = '⚠️ 当前为' + name + '内置浏览器，支付宝扫码 / App 唤起 / 安装应用均不可用。<br>' +
+      '请点右上角「···」→「在浏览器中打开」后使用完整功能';
+    document.body.appendChild(tip);
+    // 给固定顶部栏让位，避免被提示条遮挡
+    var header = document.querySelector('header');
+    if (header) header.style.marginTop = '66px';
+  }
+
   /* ===== 初始化 ===== */
   function init() {
+    setupEmbeddedTip();
     setupInstall();
     // 顶部导航
     document.querySelectorAll('.nav-item').forEach(function (a) {
