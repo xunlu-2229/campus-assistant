@@ -1,0 +1,867 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <meta name="theme-color" content="#2563eb" />
+  <title>校园综合助手</title>
+  <!-- PWA 配置 -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="assets/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <script>
+    // 提前应用外观设置（防主题闪烁）
+    try {
+      var _s = JSON.parse(localStorage.getItem('gcsa_appearance') || '{}');
+      var _m = _s.mode || 'auto';
+      var _dark = _m === 'dark' || (_m === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-mode', _dark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', _s.theme || 'blue');
+      if (_s.fontsize) document.documentElement.setAttribute('data-fontsize', _s.fontsize);
+      if (_s.density) document.documentElement.setAttribute('data-density', _s.density);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- Chart.js：图表库，课表/波形/实验曲线共用 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- SheetJS：用于课表 Excel 导入 -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <!-- 顶部应用栏 -->
+  <header class="app-bar">
+    <div class="app-bar__title">
+      <span class="logo">⚙️</span>
+      <span>校园综合助手</span>
+    </div>
+    <nav class="app-nav" id="mainNav">
+      <a class="nav-item active" data-route="home">首页</a>
+      <a class="nav-item" data-route="schedule">📅 课表</a>
+      <a class="nav-item" data-route="campus">🏫 校园生活</a>
+      <a class="nav-item" data-route="studytools">📚 学习工具</a>
+      <a class="nav-item" data-route="toolbox">🛠️ 电子工具箱</a>
+      <a class="nav-item" data-route="labdata">📈 实验数据助手</a>
+    </nav>
+    <button class="settings-btn" id="settingsBtn" aria-label="外观设置" title="外观设置">🎨</button>
+    <button class="nav-toggle" id="navToggle" aria-label="菜单">☰</button>
+  </header>
+
+  <main class="app-main">
+    <!-- ============ 首页 ============ -->
+    <section class="page active" data-page="home">
+      <div class="hero">
+        <h1>校园综合助手</h1>
+        <p class="hero__sub">面向大学生的一站式校园工具站 · 校园管理 + 电子计算 + 实验数据</p>
+        <div class="hero__chips">
+          <span class="chip">本地存储</span>
+          <span class="chip">离线可用</span>
+          <span class="chip">无需后端</span>
+          <span class="chip">隐私安全</span>
+        </div>
+      </div>
+      <!-- 首页可选组件：倒计时 + 备忘录（由外观设置控制显示） -->
+      <div id="homeWidgets" style="display:none">
+        <div class="home-widgets">
+          <div class="home-widget" id="homeCountdown" style="display:none">
+            <h3>⏰ 考试倒计时</h3>
+            <div id="homeCountdownList" class="home-widget__list"></div>
+          </div>
+          <div class="home-widget" id="homeMemo" style="display:none">
+            <h3>📝 备忘录</h3>
+            <div id="homeMemoList" class="home-widget__list"></div>
+          </div>
+        </div>
+      </div>      <!-- 常用工具快捷直达：可自定义 + 拖拽排序（js/quick.js 渲染，配置存本地） -->
+      <div class="quick-tools">
+        <div class="quick-tools__head">
+          <div class="quick-tools__title">⚡ 常用工具</div>
+          <button class="quick-manage-btn" id="btnQuickManage" title="编辑与排序">⚙️ 管理</button>
+        </div>
+        <div class="quick-grid" id="quickGrid"></div>
+      </div>
+      <div class="card-grid">
+        <div class="card card--clickable" data-jump="schedule">
+          <div class="card__icon">📅</div>
+          <h3>课表管理</h3>
+          <p>手动录入 / Excel·iCal 导入，周视图展示，本地保存导出。</p>
+        </div>
+        <div class="card card--clickable" data-jump="toolbox">
+          <div class="card__icon">🛠️</div>
+          <h3>电子工具箱</h3>
+          <p>色环电阻、RC/RL、LC 谐振、单位换算、正弦波形等专业计算。</p>
+        </div>
+        <div class="card card--clickable" data-jump="campus">
+          <div class="card__icon">🏫</div>
+          <h3>校园生活</h3>
+          <p>生活点位、学习平台快捷跳转、软件安装排坑教程。</p>
+        </div>
+        <div class="card card--clickable" data-jump="studytools">
+          <div class="card__icon">📚</div>
+          <h3>学习工具</h3>
+          <p>GPA 计算器、考试倒计时、备忘录。</p>
+        </div>
+        <div class="card card--clickable" data-jump="labdata">
+          <div class="card__icon">📈</div>
+          <h3>实验数据助手</h3>
+          <p>导入实验数据，自动绘图、线性拟合、误差分析、导出报告。</p>
+        </div>
+      </div>
+
+    </section>
+    <section class="page" data-page="schedule">
+      <h2 class="page-title">📅 课表管理</h2>
+      <div class="toolbar">
+        <button class="btn" id="btnAddCourse">+ 添加课程</button>
+        <label class="btn btn--file">
+          导入 Excel
+          <input type="file" id="fileExcel" accept=".xlsx,.xls" hidden />
+        </label>
+        <label class="btn btn--file">
+          导入 iCal
+          <input type="file" id="fileIcal" accept=".ics" hidden />
+        </label>
+        <button class="btn" id="btnExportIcal">导出 iCal</button>
+        <button class="btn" id="btnExportJson">导出 JSON</button>
+        <button class="btn btn--danger" id="btnClearSchedule">清空</button>
+      </div>
+      <div class="schedule-wrap">
+        <table class="schedule-table" id="scheduleTable"></table>
+      </div>
+    </section>
+
+    <!-- ============ 校园生活模块 ============ -->
+    <section class="page" data-page="campus">
+      <h2 class="page-title">🏫 校园生活</h2>
+      <div class="sub-tabs" id="campusTabs">
+        <button class="sub-tab active" data-sub="spots">生活点位</button>
+        <button class="sub-tab" data-sub="map">🗺️ 校园地图</button>
+        <button class="sub-tab" data-sub="study">学习跳转</button>
+        <button class="sub-tab" data-sub="life">🏪 生活服务</button>
+        <button class="sub-tab" data-sub="tutorial">软件教程</button>
+      </div>
+
+      <!-- 生活点位 -->
+      <div class="sub-page active" data-sub-page="spots">
+        <div class="toolbar">
+          <button class="btn" id="btnAddSpot">+ 添加点位</button>
+          <button class="btn btn--ghost" id="btnResetSpots">恢复默认</button>
+        </div>
+        <div id="spotList"></div>
+      </div>
+
+      <!-- 校园地图 -->
+      <div class="sub-page" data-sub-page="map">
+        <div class="panel">
+          <h3>🗺️ 校园地图标点</h3>
+          <p class="hint">上传校园地图后，在下方填好名称与分类，点击地图任意位置即可添加标点（与"生活点位"列表实时同步）。生活点位卡片上的"📍标记"按钮也可把该点位定位到地图。</p>
+          <div class="toolbar">
+            <label class="btn btn--file">
+              上传地图图片
+              <input type="file" id="mapImageFile" accept="image/*" hidden />
+            </label>
+            <button class="btn btn--ghost" id="btnClearMap">清除地图</button>
+          </div>
+          <div class="map-add-form" id="mapAddForm">
+            <input class="input" id="mapPinName" placeholder="标点名称（如 第三食堂）" style="min-width:140px" />
+            <select class="input" id="mapPinCat" style="width:120px">
+              <option value="canteen">食堂</option>
+              <option value="bath">澡堂</option>
+              <option value="laundry">洗衣房</option>
+              <option value="express">快递点</option>
+              <option value="other" selected>其他</option>
+            </select>
+            <input class="input" id="mapPinDesc" placeholder="备注（可选）" style="min-width:120px" />
+          </div>
+          <div class="map-mode-tip" id="mapModeTip" style="display:none"></div>
+          <div class="map-container" id="mapContainer">
+            <div class="map-placeholder" id="mapPlaceholder">📤 请先上传校园地图图片</div>
+            <img class="map-img" id="mapImg" style="display:none" />
+            <div class="map-pins" id="mapPins"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 学习跳转 -->
+      <div class="sub-page" data-sub-page="study">
+        <div class="panel">
+          <h3>学习平台快捷跳转</h3>
+          <p class="hint">仅提供官方入口跳转，不涉及自动签到等违规功能。教务系统/图书馆入口各校不同，请自行补充。</p>
+          <div class="link-grid">
+            <a class="link-card" href="https://i.chaoxing.com" target="_blank" rel="noopener">
+              <div class="link-card__icon">📖</div><div>学习通</div><small>i.chaoxing.com</small>
+            </a>
+            <a class="link-card" href="https://u.unipus.cn" target="_blank" rel="noopener">
+              <div class="link-card__icon">🎓</div><div>U校园</div><small>u.unipus.cn</small>
+            </a>
+            <a class="link-card" href="https://www.icourse163.org" target="_blank" rel="noopener">
+              <div class="link-card__icon">🏛️</div><div>中国大学MOOC</div><small>icourse163.org</small>
+            </a>
+            <a class="link-card" href="https://www.cnki.net" target="_blank" rel="noopener">
+              <div class="link-card__icon">📄</div><div>知网 CNKI</div><small>cnki.net</small>
+            </a>
+            <a class="link-card" href="https://www.npmjs.com" target="_blank" rel="noopener">
+              <div class="link-card__icon">📦</div><div>npm</div><small>npmjs.com</small>
+            </a>
+            <a class="link-card" href="https://github.com" target="_blank" rel="noopener">
+              <div class="link-card__icon">🐙</div><div>GitHub</div><small>github.com</small>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 生活服务 -->
+      <div class="sub-page" data-sub-page="life">
+        <div class="panel">
+          <h3>🏪 生活服务快捷</h3>
+          <p class="hint">支付宝「扫一扫/付款码」可直接唤起 App 扫码（校园洗衣机、开水机、浴室设备通用）；云达人/U净需先安装其 App。可自行添加/删除快捷入口。</p>
+          <div class="toolbar">
+            <button class="btn" id="btnAddLife">+ 添加快捷</button>
+            <button class="btn btn--ghost" id="btnResetLife">恢复默认</button>
+          </div>
+          <div id="lifeList" class="link-grid"></div>
+        </div>
+      </div>
+
+      <!-- 软件教程 -->
+      <div class="sub-page" data-sub-page="tutorial">
+        <div class="panel">
+          <h3>📚 工科软件教程（公众号文章）</h3>
+          <p class="hint">点击标题跳转到公众号文章。可自行添加/删除教程链接，支持微信公众号文章、博客、B站视频等任意网址。</p>
+          <div class="toolbar">
+            <button class="btn" id="btnAddTutorial">+ 添加教程</button>
+            <button class="btn btn--ghost" id="btnResetTut">恢复默认</button>
+            <button class="btn btn--ghost" id="btnExportTut">导出 JSON</button>
+            <button class="btn btn--ghost" id="btnImportTut">导入 JSON</button>
+            <input type="file" id="tutImportFile" accept=".json,application/json" hidden>
+          </div>
+          <div id="tutorialList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 学习工具模块 ============ -->
+    <section class="page" data-page="studytools">
+      <h2 class="page-title">📚 学习工具</h2>
+      <div class="sub-tabs" id="toolsTabs">
+        <button class="sub-tab active" data-sub="gpa">GPA 计算器</button>
+        <button class="sub-tab" data-sub="countdown">考试倒计时</button>
+        <button class="sub-tab" data-sub="memo">备忘录</button>
+      </div>
+
+      <!-- GPA计算器 -->
+      <div class="sub-page active" data-sub-page="gpa">
+        <div class="panel">
+          <h3>学分加权 / GPA 计算</h3>
+          <table class="data-table" id="gpaTable">
+            <thead><tr><th>课程名</th><th>成绩(百分制)</th><th>学分</th><th></th></tr></thead>
+            <tbody id="gpaBody"></tbody>
+          </table>
+          <div class="toolbar">
+            <button class="btn btn--ghost" id="btnAddGpaRow">+ 添加一行</button>
+            <button class="btn" id="btnGpaCalc">计算</button>
+            <button class="btn btn--ghost" id="btnGpaSave">保存</button>
+          </div>
+          <div class="result-box" id="gpaResult"></div>
+        </div>
+      </div>
+
+      <!-- 考试倒计时 -->
+      <div class="sub-page" data-sub-page="countdown">
+        <div class="panel">
+          <h3>考试倒计时</h3>
+          <div class="form-row">
+            <label>常见大考快速添加（点击自动填入名称和日期）</label>
+            <div class="exam-preset-row" id="examPresets">
+              <button class="exam-preset" data-exam="英语四六级|2026-12-12">英语四六级<br><small>12月12日</small></button>
+              <button class="exam-preset" data-exam="考研初试|2026-12-19">考研初试<br><small>12月19-20日</small></button>
+              <button class="exam-preset" data-exam="期末考试周|2026-12-28">期末考试周<br><small>12月底</small></button>
+              <button class="exam-preset" data-exam="教资笔试|2026-10-25">教资笔试<br><small>下半年</small></button>
+              <button class="exam-preset" data-exam="计算机二级|2026-09-26">计算机二级<br><small>9月批次</small></button>
+              <button class="exam-preset" data-exam="国考|2026-11-29">国家公务员<br><small>11月底</small></button>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>科目</label><input class="input" id="examName" placeholder="如 高等数学" />
+          </div>
+          <div class="form-row">
+            <label>考试日期</label><input class="input" id="examDate" type="date" />
+          </div>
+          <button class="btn" id="btnAddExam">添加</button>
+          <div id="examList" class="list-group"></div>
+        </div>
+      </div>
+
+      <!-- 备忘录 -->
+      <div class="sub-page" data-sub-page="memo">
+        <div class="panel">
+          <h3>备忘录</h3>
+          <div class="toolbar">
+            <input class="input" id="memoInput" placeholder="记点什么…" style="flex:1;min-width:200px" />
+            <button class="btn" id="btnAddMemo">添加</button>
+          </div>
+          <div id="memoList" class="list-group"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 电子工具箱 ============ -->
+    <section class="page" data-page="toolbox">
+      <h2 class="page-title">🛠️ 电子信息工具箱</h2>
+      <div class="sub-tabs" id="toolboxTabs">
+        <button class="sub-tab active" data-sub="resistor">色环电阻</button>
+        <button class="sub-tab" data-sub="rcrl">RC/RL 电路</button>
+        <button class="sub-tab" data-sub="resonance">LC 谐振</button>
+        <button class="sub-tab" data-sub="unit">单位换算</button>
+        <button class="sub-tab" data-sub="signal">正弦信号</button>
+        <button class="sub-tab" data-sub="code">代码速查</button>
+        <button class="sub-tab" data-sub="components">📦 元器件库</button>
+      </div>
+
+      <!-- 色环电阻 -->
+      <div class="sub-page active" data-sub-page="resistor">
+        <div class="panel">
+          <h3>色环 → 阻值</h3>
+          <div class="resistor-bands" id="resistorBands">
+            <select id="band1"></select>
+            <select id="band2"></select>
+            <select id="band3"></select>
+            <select id="band4"></select>
+            <select id="band5" class="optional"></select>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="useBand5" /> <span>5 色环模式</span>
+          </label>
+          <div class="resistor-preview" id="resistorPreview"></div>
+          <div class="result-box" id="resistorResult">请选择色环颜色</div>
+        </div>
+        <div class="panel">
+          <h3>阻值 → 色环</h3>
+          <div class="input-with-unit">
+            <input class="input" id="ohmInput" type="number" placeholder="输入阻值" />
+            <select class="input unit-sel" id="ohmUnit" title="单位">
+              <option value="1">Ω</option>
+              <option value="1000">kΩ</option>
+              <option value="1000000">MΩ</option>
+            </select>
+          </div>
+          <select class="input" id="ohmTolerance">
+            <option value="5">±5%</option>
+            <option value="1">±1%</option>
+            <option value="10">±10%</option>
+          </select>
+          <button class="btn" id="btnOhmToBands">转换为色环</button>
+          <div class="result-box" id="ohmResult"></div>
+        </div>
+      </div>
+
+      <!-- RC/RL -->
+      <div class="sub-page" data-sub-page="rcrl">
+        <div class="panel">
+          <h3>RC / RL 一阶电路计算</h3>
+          <div class="form-row">
+            <label>类型</label>
+            <select class="input" id="rcrlType">
+              <option value="rc">RC 电路</option>
+              <option value="rl">RL 电路</option>
+            </select>
+          </div>
+          <div class="form-row" id="rcrlRow1">
+            <label>R (电阻)</label>
+            <div class="input-with-unit">
+              <input class="input" id="rcrlR" type="number" value="1000" />
+              <select class="input unit-sel" id="rcrlRUnit" title="单位">
+                <option value="1">Ω</option>
+                <option value="1000">kΩ</option>
+                <option value="1000000">MΩ</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row" id="rcrlRow2">
+            <label>C (电容)</label>
+            <div class="input-with-unit">
+              <input class="input" id="rcrlC" type="number" value="1" />
+              <select class="input unit-sel" id="rcrlCUnit" title="单位">
+                <option value="1e-12">pF</option>
+                <option value="1e-9">nF</option>
+                <option value="1e-6" selected>μF</option>
+                <option value="1">F</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row" id="rcrlRow3" style="display:none">
+            <label>L (电感)</label>
+            <div class="input-with-unit">
+              <input class="input" id="rcrlL" type="number" value="1" />
+              <select class="input unit-sel" id="rcrlLUnit" title="单位">
+                <option value="1e-6">μH</option>
+                <option value="1e-3" selected>mH</option>
+                <option value="1">H</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>角频率 ω (rad/s)</label>
+            <input class="input" id="rcrlOmega" type="number" value="1000" />
+          </div>
+          <button class="btn" id="btnRcrlCalc">计算</button>
+          <div class="result-box" id="rcrlResult"></div>
+        </div>
+      </div>
+
+      <!-- LC 谐振 -->
+      <div class="sub-page" data-sub-page="resonance">
+        <div class="panel">
+          <h3>LC 谐振计算</h3>
+          <div class="form-row">
+            <label>类型</label>
+            <select class="input" id="resType">
+              <option value="series">串联谐振</option>
+              <option value="parallel">并联谐振</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>L (电感)</label>
+            <div class="input-with-unit">
+              <input class="input" id="resL" type="number" value="1" />
+              <select class="input unit-sel" id="resLUnit" title="单位">
+                <option value="1e-6">μH</option>
+                <option value="1e-3" selected>mH</option>
+                <option value="1">H</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>C (电容)</label>
+            <div class="input-with-unit">
+              <input class="input" id="resC" type="number" value="1" />
+              <select class="input unit-sel" id="resCUnit" title="单位">
+                <option value="1e-12">pF</option>
+                <option value="1e-9">nF</option>
+                <option value="1e-6" selected>μF</option>
+                <option value="1">F</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>R (等效电阻，算 Q 用)</label>
+            <div class="input-with-unit">
+              <input class="input" id="resR" type="number" value="10" />
+              <select class="input unit-sel" id="resRUnit" title="单位">
+                <option value="1" selected>Ω</option>
+                <option value="1000">kΩ</option>
+                <option value="1000000">MΩ</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn" id="btnResCalc">计算</button>
+          <div class="result-box" id="resResult"></div>
+        </div>
+      </div>
+
+      <!-- 单位换算 -->
+      <div class="sub-page" data-sub-page="unit">
+        <div class="panel">
+          <h3>电阻 / 电容 / 电感 单位换算</h3>
+          <div class="form-row">
+            <label>类别</label>
+            <select class="input" id="unitCategory">
+              <option value="R">电阻 (Ω/kΩ/MΩ)</option>
+              <option value="C">电容 (pF/nF/μF/F)</option>
+              <option value="L">电感 (μH/mH/H)</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>数值</label>
+            <input class="input" id="unitValue" type="number" value="1" />
+          </div>
+          <div class="form-row">
+            <label>原单位</label>
+            <select class="input" id="unitFrom"></select>
+          </div>
+          <button class="btn" id="btnUnitCalc">换算</button>
+          <div class="result-box" id="unitResult"></div>
+        </div>
+        <div class="panel">
+          <h3>dB 换算</h3>
+          <div class="form-row">
+            <label>类型</label>
+            <select class="input" id="dbType">
+              <option value="power">功率比 → dB</option>
+              <option value="voltage">电压比 → dB</option>
+              <option value="db2power">dB → 功率比</option>
+              <option value="db2voltage">dB → 电压比</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>输入值</label>
+            <input class="input" id="dbValue" type="number" value="10" />
+          </div>
+          <button class="btn" id="btnDbCalc">换算</button>
+          <div class="result-box" id="dbResult"></div>
+        </div>
+      </div>
+
+      <!-- 正弦信号 -->
+      <div class="sub-page" data-sub-page="signal">
+        <div class="panel">
+          <h3>正弦序列生成</h3>
+          <div class="form-row">
+            <label>幅度 A</label>
+            <input class="input" id="sigAmp" type="number" value="1" />
+          </div>
+          <div class="form-row">
+            <label>频率 f (Hz)</label>
+            <input class="input" id="sigFreq" type="number" value="50" />
+          </div>
+          <div class="form-row">
+            <label>相位 φ (°)</label>
+            <input class="input" id="sigPhase" type="number" value="0" />
+          </div>
+          <div class="form-row">
+            <label>采样点数 N</label>
+            <input class="input" id="sigN" type="number" value="200" />
+          </div>
+          <div class="form-row">
+            <label>总时长 (s)</label>
+            <input class="input" id="sigDur" type="number" value="0.04" />
+          </div>
+          <button class="btn" id="btnSigGen">生成波形</button>
+          <div class="chart-wrap"><canvas id="signalChart"></canvas></div>
+          <div class="result-box" id="sigResult"></div>
+        </div>
+      </div>
+
+      <!-- 代码速查 -->
+      <div class="sub-page" data-sub-page="code">
+        <div class="panel">
+          <h3>🐍 Python 在线运行器（程序自检）</h3>
+          <p class="hint">基于 Pyodide 在浏览器内本地执行 Python，代码不上传任何服务器。首次运行需联网加载运行环境（约 10MB，之后有缓存）。绘图等需本地环境的模板已标注，不提供在线运行。</p>
+          <textarea class="input" id="pyCode" rows="10" placeholder="print('Hello, 校园助手')"></textarea>
+          <div class="toolbar">
+            <button class="btn" id="btnPyRun">▶ 运行</button>
+            <button class="btn btn--ghost" id="btnPyClear">清空</button>
+          </div>
+          <div class="result-box" id="pyOutput" style="min-height:56px">输出将显示在这里</div>
+        </div>
+        <div class="panel">
+          <h3>常用代码模板速查</h3>
+          <div class="form-row">
+            <label>语言</label>
+            <select class="input" id="codeLang">
+              <option value="c">C 语言</option>
+              <option value="python">Python</option>
+              <option value="matlab">MATLAB</option>
+            </select>
+          </div>
+          <div id="codeList"></div>
+        </div>
+      </div>
+
+      <!-- 元器件素材库 -->
+      <div class="sub-page" data-sub-page="components">
+        <div class="panel">
+          <h3>📦 元器件与材料库存</h3>
+          <p class="hint">记录购买的元件材料，库存低于阈值自动预警。支持搜索、分类筛选、增删改，以及 Excel 批量导入（点"下载模板"看格式）/ 导出。</p>
+          <div class="toolbar">
+            <button class="btn" id="btnAddComp">+ 入库元件</button>
+            <button class="btn btn--ghost" id="btnImportComp">导入 Excel</button>
+            <button class="btn btn--ghost" id="btnExportComp">导出 Excel</button>
+            <button class="btn btn--ghost" id="btnCompTpl">下载模板</button>
+            <button class="btn btn--danger" id="btnBatchDelComp" style="display:none" title="删除勾选的元件">批量删除</button>
+            <input type="file" id="compImportFile" accept=".xlsx,.xls,.csv" hidden>
+            <input class="input" id="compSearch" placeholder="🔍 搜索名称/型号/备注" style="flex:1;min-width:160px" />
+            <select class="input" id="compFilter" style="width:130px">
+              <option value="all">全部分类</option>
+              <option value="resistor">电阻</option>
+              <option value="capacitor">电容</option>
+              <option value="inductor">电感</option>
+              <option value="diode">二极管/LED</option>
+              <option value="transistor">三极管/MOS</option>
+              <option value="ic">芯片 IC</option>
+              <option value="module">模块</option>
+              <option value="tool">工具耗材</option>
+              <option value="other">其他</option>
+            </select>
+          </div>
+          <div class="comp-stats" id="compStats"></div>
+          <div id="compList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 实验数据助手 ============ -->
+    <section class="page" data-page="labdata">
+      <h2 class="page-title">📈 实验数据助手</h2>
+
+      <div class="panel">
+        <h3>① 输入数据</h3>
+        <div class="form-row">
+          <label>粘贴数据：每行一组 x y（空格 / 逗号 / Tab 分隔）</label>
+          <textarea class="input" id="labData" rows="7" placeholder="示例（伏安特性曲线）：&#10;1.0 0.102&#10;2.0 0.198&#10;3.0 0.305&#10;4.0 0.404&#10;5.0 0.501"></textarea>
+        </div>
+        <div class="toolbar">
+          <label class="btn btn--file">
+            导入 Excel（第1列=x，第2列=y）
+            <input type="file" id="labFile" accept=".xlsx,.xls,.csv" hidden />
+          </label>
+        </div>
+        <div class="form-row">
+          <label>x 轴含义</label><input class="input" id="labXName" value="U (V)" />
+        </div>
+        <div class="form-row">
+          <label>y 轴含义</label><input class="input" id="labYName" value="I (mA)" />
+        </div>
+        <div class="form-row">
+          <label>实验类型（决定附加分析）</label>
+          <select class="input" id="labType">
+            <option value="generic">通用曲线（均值/标准差/线性拟合）</option>
+            <option value="vam">伏安特性（附加 R = 1/斜率）</option>
+            <option value="resonance">谐振特性（附加 f0 / BW / Q）</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>② 绘图与分析</h3>
+        <div class="toolbar">
+          <button class="btn" id="btnLabPlot">生成图表与分析</button>
+          <label class="switch"><input type="checkbox" id="labShowFit" checked /> <span>显示拟合直线</span></label>
+          <label class="switch"><input type="checkbox" id="labLineMode" /> <span>数据点连线</span></label>
+        </div>
+        <div class="toolbar" style="margin-bottom:6px">
+          <label class="switch"><input type="checkbox" id="labQuadratic" /> <span>二次曲线拟合</span></label>
+          <label class="switch"><input type="checkbox" id="labGrubbs" /> <span>格拉布斯剔除粗大误差</span></label>
+          <label class="switch"><input type="checkbox" id="labUncertainty" /> <span>A类不确定度</span></label>
+          <label class="switch"><input type="checkbox" id="labResidual" /> <span>残差分析</span></label>
+        </div>
+        <div class="chart-wrap"><canvas id="labChart"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h3>③ 统计与误差分析</h3>
+        <div class="result-box" id="labResult">暂无数据，请先输入并生成</div>
+        <div class="divider"></div>
+        <h3>误差计算器（测量值 vs 理论值）</h3>
+        <div class="form-row">
+          <label>测量值</label><input class="input" id="errMeasured" type="number" />
+        </div>
+        <div class="form-row">
+          <label>理论值</label><input class="input" id="errTheory" type="number" />
+        </div>
+        <div class="toolbar">
+          <button class="btn" id="btnErrCalc">计算误差</button>
+          <button class="btn btn--ghost" id="btnLabExport">导出数据 CSV</button>
+          <button class="btn" id="btnLabPdf">📄 导出 PDF 报告</button>
+        </div>
+        <div class="result-box" id="errResult"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 添加课程弹窗 -->
+  <!-- 常用工具管理弹窗 -->
+  <div class="modal" id="quickModal">
+    <div class="modal__box">
+      <h3>⚡ 管理常用工具</h3>
+      <p class="hint">拖动「≡」调整首页快捷顺序（可拖动的项）；点右侧「隐藏/显示」开关。</p>
+      <div class="quick-manage-list" id="quickManageList"></div>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" id="btnQuickReset">恢复默认</button>
+        <button class="btn" id="btnQuickDone">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="courseModal">
+    <div class="modal__box">
+      <h3 id="courseModalTitle">添加课程</h3>
+      <div class="form-row"><label>课程名</label><input class="input" id="cName" /></div>
+      <div class="form-row"><label>星期</label>
+        <select class="input" id="cDay">
+          <option value="1">周一</option><option value="2">周二</option>
+          <option value="3">周三</option><option value="4">周四</option>
+          <option value="5">周五</option><option value="6">周六</option>
+          <option value="7">周日</option>
+        </select>
+      </div>
+      <div class="form-row"><label>开始节次</label>
+        <select class="input" id="cStart">
+          <option value="1">第1节</option><option value="2">第2节</option>
+          <option value="3">第3节</option><option value="4">第4节</option>
+          <option value="5">第5节</option><option value="6">第6节</option>
+          <option value="7">第7节</option><option value="8">第8节</option>
+          <option value="9">第9节</option><option value="10">第10节</option>
+          <option value="11">第11节</option><option value="12">第12节</option>
+        </select>
+      </div>
+      <div class="form-row"><label>结束节次</label>
+        <select class="input" id="cEnd">
+          <option value="1">第1节</option><option value="2">第2节</option>
+          <option value="3">第3节</option><option value="4">第4节</option>
+          <option value="5">第5节</option><option value="6">第6节</option>
+          <option value="7">第7节</option><option value="8">第8节</option>
+          <option value="9">第9节</option><option value="10">第10节</option>
+          <option value="11">第11节</option><option value="12">第12节</option>
+        </select>
+      </div>
+      <div class="form-row"><label>地点</label><input class="input" id="cPlace" placeholder="如 教3-201" /></div>
+      <div class="form-row"><label>教师</label><input class="input" id="cTeacher" /></div>
+      <div class="modal__actions">
+        <button class="btn" id="btnSaveCourse">保存</button>
+        <button class="btn btn--ghost" id="btnCloseModal">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加点位弹窗 -->
+  <div class="modal" id="spotModal">
+    <div class="modal__box">
+      <h3>添加点位</h3>
+      <div class="form-row"><label>名称</label><input class="input" id="spotName" placeholder="如 一食堂" /></div>
+      <div class="form-row"><label>分类</label>
+        <select class="input" id="spotCategory">
+          <option value="canteen">食堂</option>
+          <option value="bath">澡堂</option>
+          <option value="laundry">洗衣房</option>
+          <option value="express">快递</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+      <div class="form-row"><label>营业时间</label><input class="input" id="spotTime" placeholder="如 10:30-13:30" /></div>
+      <div class="form-row"><label>位置</label><input class="input" id="spotPlace" placeholder="如 东区一楼" /></div>
+      <div class="modal__actions">
+        <button class="btn" id="btnSaveSpot">保存</button>
+        <button class="btn btn--ghost" id="btnCloseSpotModal">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 入库元件弹窗 -->
+  <div class="modal" id="compModal">
+    <div class="modal__box">
+      <h3 id="compModalTitle">入库元件</h3>
+      <div class="form-row"><label>名称 *</label><input class="input" id="compName" placeholder="如 色环电阻" /></div>
+      <div class="form-row"><label>规格/型号</label><input class="input" id="compSpec" placeholder="如 10kΩ ±1% 0805" /></div>
+      <div class="form-row"><label>分类</label>
+        <select class="input" id="compCategory">
+          <option value="resistor">电阻</option>
+          <option value="capacitor">电容</option>
+          <option value="inductor">电感</option>
+          <option value="diode">二极管/LED</option>
+          <option value="transistor">三极管/MOS</option>
+          <option value="ic">芯片 IC</option>
+          <option value="module">模块</option>
+          <option value="tool">工具耗材</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+      <div class="form-row"><label>数量 *</label><input class="input" id="compQty" type="number" min="0" value="10" /></div>
+      <div class="form-row"><label>库存预警阈值（低于此数量提醒）</label><input class="input" id="compMin" type="number" min="0" value="3" /></div>
+      <div class="form-row"><label>单价（元，可选）</label><input class="input" id="compPrice" type="number" min="0" step="0.01" placeholder="如 0.05" /></div>
+      <div class="form-row"><label>备注（可选）</label><input class="input" id="compNote" placeholder="如 立创商城买/实验室领用" /></div>
+      <div class="modal__actions">
+        <button class="btn" id="btnSaveComp">保存</button>
+        <button class="btn btn--ghost" id="btnCloseCompModal">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 移动端底部导航 -->
+  <nav class="bottom-nav" id="bottomNav">
+    <a class="bottom-nav__item active" data-route="home"><span class="bottom-nav__icon">🏠</span>首页</a>
+    <a class="bottom-nav__item" data-route="schedule"><span class="bottom-nav__icon">📅</span>课表</a>
+    <a class="bottom-nav__item" data-route="toolbox"><span class="bottom-nav__icon">🛠️</span>工具</a>
+    <a class="bottom-nav__item" data-route="labdata"><span class="bottom-nav__icon">📈</span>实验</a>
+    <a class="bottom-nav__item" data-route="studytools"><span class="bottom-nav__icon">📚</span>学习</a>
+  </nav>
+
+  <!-- 外观设置抽屉 -->
+  <aside class="settings-drawer" id="settingsDrawer">
+    <div class="settings-drawer__head">
+      <span>🎨 外观设置</span>
+      <button class="settings-drawer__close" id="btnCloseSettings" aria-label="关闭">×</button>
+    </div>
+    <div class="settings-drawer__body">
+      <div class="settings-group">
+        <div class="settings-group__title">主题模式</div>
+        <div class="opt-row" id="modeRow">
+          <button class="opt-btn" data-mode="light">☀️ 浅色</button>
+          <button class="opt-btn" data-mode="dark">🌙 深色</button>
+          <button class="opt-btn" data-mode="auto">💻 跟随系统</button>
+        </div>
+      </div>
+      <div class="settings-group">
+        <div class="settings-group__title">主题色</div>
+        <div class="color-row" id="colorRow">
+          <div class="color-dot" data-theme="blue" style="background:#2563eb" title="靛蓝"></div>
+          <div class="color-dot" data-theme="purple" style="background:#7c3aed" title="幻紫"></div>
+          <div class="color-dot" data-theme="cyan" style="background:#0891b2" title="青碧"></div>
+          <div class="color-dot" data-theme="green" style="background:#059669" title="翠绿"></div>
+          <div class="color-dot" data-theme="orange" style="background:#ea580c" title="暖橙"></div>
+          <div class="color-dot" data-theme="rose" style="background:#e11d48" title="玫红"></div>
+        </div>
+      </div>
+      <div class="settings-group">
+        <div class="settings-group__title">字体大小</div>
+        <div class="opt-row" id="fontRow">
+          <button class="opt-btn" data-fs="s">A 小</button>
+          <button class="opt-btn" data-fs="m">A 标准</button>
+          <button class="opt-btn" data-fs="l">A 大</button>
+        </div>
+      </div>
+      <div class="settings-group">
+        <div class="settings-group__title">界面密度</div>
+        <div class="opt-row" id="densityRow">
+          <button class="opt-btn" data-density="normal">标准</button>
+          <button class="opt-btn" data-density="compact">紧凑</button>
+        </div>
+      </div>
+      <div class="settings-group">
+        <div class="settings-group__title">首页组件</div>
+        <div class="opt-row" id="homeWidgetRow">
+          <button class="opt-btn" data-hw="none">仅卡片</button>
+          <button class="opt-btn" data-hw="countdown">+ 倒计时</button>
+          <button class="opt-btn" data-hw="memo">+ 备忘录</button>
+          <button class="opt-btn" data-hw="both">+ 两者</button>
+        </div>
+      </div>
+      <div class="settings-group">
+        <div class="settings-group__title">首页背景</div>
+        <div class="opt-row" id="bgRow">
+          <button class="opt-btn" id="btnBgPick">🖼️ 上传图片</button>
+          <button class="opt-btn" id="btnBgClear">✖ 移除背景</button>
+        </div>
+        <div class="settings-tip">背景图仅保存在本地浏览器（自动压缩 ≤1200px），建议选暗色图片，卡片文字不受影响。</div>
+        <input type="file" id="bgFileInput" accept="image/*" hidden>
+      </div>
+      <div class="settings-group">
+        <div class="settings-tip">偏好自动保存在本地浏览器，全站实时生效。深色模式适合夜间宿舍使用；紧凑模式可在同屏看到更多内容。</div>
+      </div>
+    </div>
+  </aside>
+
+  <footer class="app-footer">
+    <span>校园综合助手 · 数据全部保存在本地浏览器，不上传服务器</span>
+  </footer>
+
+  <!-- 业务脚本（顺序依赖：先公共模块，再各功能模块，最后主应用） -->
+  <script src="js/storage.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/chart.js"></script>
+  <script src="js/schedule.js"></script>
+  <script src="js/campus.js"></script>
+  <script src="js/tools.js"></script>
+  <script src="js/labdata.js"></script>
+  <script src="js/calc/unit.js"></script>
+  <script src="js/calc/resistor.js"></script>
+  <script src="js/calc/rcrl.js"></script>
+  <script src="js/calc/resonance.js"></script>
+  <script src="js/calc/signal.js"></script>
+  <script src="js/calc/code.js"></script>
+  <script src="js/calc/components.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/quick.js"></script>
+</body>
+</html>

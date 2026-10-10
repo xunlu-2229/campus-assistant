@@ -1,0 +1,6 @@
+﻿.vercel
+.temp
+测试材料
+node_modules
+*.zip
+Thumbs.db
