@@ -42,8 +42,85 @@
     }
   }
 
-  /* ===== PWA 安装引导（"添加到桌面"按钮） ===== */
+  /* ===== PWA 安装引导（"添加到桌面"按钮：能弹系统框直接弹，不能弹给图文步骤） ===== */
   var deferredPrompt = null;
+  var installGuideShown = false;
+
+  /* 识别当前浏览器，返回 {name, mode, steps[]}；mode: chromium(可系统安装)/ios/menu(菜单添加)/embedded(内置) */
+  function browserInfo() {
+    var ua = navigator.userAgent;
+    if (/MicroMessenger/i.test(ua)) return { name: '微信内置浏览器', mode: 'embedded', steps: ['点右上角「···」', '选择「在浏览器中打开」', '再用浏览器菜单添加到桌面'] };
+    if (/QQ\//i.test(ua)) return { name: 'QQ内置浏览器', mode: 'embedded', steps: ['点右上角「···」', '选择「用浏览器打开」', '再用浏览器菜单添加到桌面'] };
+    if (/iPad|iPhone|iPod/i.test(ua)) return { name: 'iPhone / iPad', mode: 'ios', steps: ['点底部「分享」按钮（方框加箭头图标）', '在菜单里选「添加到主屏幕」', '点右上角「添加」确认'] };
+    if (/Edg\//i.test(ua)) return { name: 'Edge 浏览器', mode: 'chromium', steps: [] };
+    if (/Chrome\//i.test(ua) && !/UCBrowser|MiuiBrowser|HuaweiBrowser|quark|OPR|VivoBrowser/i.test(ua)) return { name: 'Chrome 浏览器', mode: 'chromium', steps: [] };
+    if (/MiuiBrowser/i.test(ua)) return { name: '小米浏览器', mode: 'menu', steps: ['点底部「≡」菜单（或右上角 ⋮）', '选择「添加到桌面」', '确认添加，桌面出现图标'] };
+    if (/HuaweiBrowser/i.test(ua)) return { name: '华为浏览器', mode: 'menu', steps: ['点底部/右上角「⋮」菜单', '选择「添加到主屏幕」', '确认后桌面出现图标'] };
+    if (/quark/i.test(ua)) return { name: '夸克浏览器', mode: 'menu', steps: ['点底部「☰ / 更多」菜单', '选择「添加到桌面 / 主屏幕」', '确认添加'] };
+    if (/UCBrowser/i.test(ua)) return { name: 'UC 浏览器', mode: 'menu', steps: ['点底部「☰」菜单', '选择「添加到主屏幕」', '确认添加'] };
+    if (/OPR|Opera/i.test(ua)) return { name: 'OPPO / 一加浏览器', mode: 'menu', steps: ['点底部「≡ / ☰」菜单', '选择「添加到主屏幕」', '确认添加'] };
+    if (/VivoBrowser/i.test(ua)) return { name: 'vivo 浏览器', mode: 'menu', steps: ['点底部「≡」菜单', '选择「添加到主屏幕」', '确认添加'] };
+    if (/Chrome|Safari/i.test(ua)) return { name: '手机浏览器', mode: 'menu', steps: ['点浏览器菜单按钮（⋯ / ≡）', '选择「添加到主屏幕 / 桌面」', '确认添加'] };
+    return { name: '当前浏览器', mode: 'menu', steps: ['点浏览器菜单按钮（⋯ / ≡）', '选择「添加到主屏幕 / 桌面」', '确认添加'] };
+  }
+
+  /* 打开图文安装引导弹窗 */
+  function openInstallGuide() {
+    if (installGuideShown) return;
+    installGuideShown = true;
+    var info = browserInfo();
+    var steps = info.steps.map(function (s, i) {
+      return '<div style="display:flex;gap:12px;align-items:flex-start;margin:10px 0">' +
+        '<span style="width:28px;height:28px;flex-shrink:0;background:var(--primary,#2563eb);color:#fff;border-radius:50%;' +
+        'display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700">' + (i + 1) + '</span>' +
+        '<span style="font-size:16px;line-height:1.6">' + s + '</span></div>';
+    }).join('');
+    var tipHtml = '';
+    if (info.mode === 'chromium') {
+      tipHtml = '<p style="font-size:15px;color:#6b7280;margin:6px 0 2px">当前浏览器支持一键安装，请点下方按钮，浏览器会弹出系统安装确认框：</p>';
+    } else if (info.mode === 'ios') {
+      tipHtml = '<p style="font-size:15px;color:#6b7280;margin:6px 0 2px">iPhone 需要手动添加到主屏幕（网页无法代操作）：</p>';
+    } else if (info.mode === 'embedded') {
+      tipHtml = '<p style="font-size:15px;color:#d97706;margin:6px 0 2px">当前在聊天软件里打开，无法安装，请先换成系统浏览器：</p>';
+    } else {
+      tipHtml = '<p style="font-size:15px;color:#6b7280;margin:6px 0 2px">当前浏览器不支持一键弹窗，按下面步骤手动添加（菜单按钮一般在地址栏旁）：</p>';
+    }
+    var m = document.createElement('div');
+    m.className = 'modal';
+    m.id = 'installGuideModal';
+    m.style.cssText = 'z-index:100000';
+    m.innerHTML = '<div class="modal__box" style="max-width:340px">' +
+      '<h3 style="margin-bottom:10px">📲 安装「校园综合助手」</h3>' +
+      '<p style="font-size:14px;color:#9ca3af;margin-bottom:8px">当前浏览器：' + info.name + '</p>' +
+      tipHtml +
+      '<div style="background:#f3f4f6;border-radius:10px;padding:10px 14px;margin:10px 0">' + steps + '</div>' +
+      '<p style="font-size:14px;color:#6b7280;margin:8px 0 4px">安装后可从桌面图标直接打开，离线也能用。</p>' +
+      '<div style="display:flex;gap:10px;margin-top:14px">' +
+      (info.mode === 'chromium' ? '<button class="btn" style="flex:1" id="btnGuideInstall">立即安装</button>' : '') +
+      '<button class="btn btn--ghost" style="flex:1" id="btnGuideClose">我知道了</button>' +
+      '</div></div>';
+    document.body.appendChild(m);
+    m.classList.add('active');
+    m.addEventListener('click', function (e) { if (e.target === m) closeGuide(); });
+    document.getElementById('btnGuideClose').addEventListener('click', closeGuide);
+    var b = document.getElementById('btnGuideInstall');
+    if (b) b.addEventListener('click', function () {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function (res) {
+          if (res.outcome === 'accepted') { closeGuide(); alert('已添加到桌面！'); }
+          deferredPrompt = null;
+        }).catch(function () {});
+} else {
+        closeGuide(); openInstallGuide(); // 没有系统框时重新展示步骤引导
+      }
+    });
+    function closeGuide() {
+      installGuideShown = false;
+      if (m.parentNode) m.parentNode.removeChild(m);
+    }
+  }
+
   function setupInstall() {
     var btn = document.getElementById('btnInstallApp');
     if (!btn) return;
@@ -53,30 +130,38 @@
       btn.style.display = 'none';
       return;
     }
-    // Android Chrome/Edge：捕获安装提示，点击直接调系统安装
+    // Android Chrome/Edge：捕获系统安装提示
     window.addEventListener('beforeinstallprompt', function (e) {
       e.preventDefault();
       deferredPrompt = e;
+      // 首次访问自动弹一次系统安装框（提升安装转化，仅一次）
+      try {
+        if (!window.localStorage.getItem('gcsa_install_prompted')) {
+          window.localStorage.setItem('gcsa_install_prompted', '1');
+          setTimeout(function () {
+            if (deferredPrompt) {
+              var dp = deferredPrompt;
+              deferredPrompt = null;
+              dp.prompt();
+              dp.userChoice.then(function (res) {
+                if (res.outcome === 'accepted') { alert('已添加到桌面，下次可从桌面图标直接打开！'); }
+              }).catch(function () {});
+            }
+          }, 1200);
+        }
+      } catch (e2) { /* localStorage 不可用时忽略 */ }
     });
     btn.addEventListener('click', function () {
       if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then(function (res) {
+        var dp = deferredPrompt;
+        deferredPrompt = null;
+        dp.prompt();
+        dp.userChoice.then(function (res) {
           if (res.outcome === 'accepted') { alert('已添加到桌面，下次可从桌面图标直接打开！'); }
-          deferredPrompt = null;
         }).catch(function () {});
         return;
       }
-      var ua = navigator.userAgent;
-      if (/MicroMessenger/i.test(ua)) {
-        alert('微信内置浏览器不支持添加到桌面。\n请点右上角「···」→「在浏览器中打开」，再用浏览器菜单添加到桌面。');
-      } else if (/QQ\//i.test(ua)) {
-        alert('QQ 内置浏览器不支持添加到桌面。\n请点右上角「···」→「用浏览器打开」。');
-      } else if (/iPad|iPhone|iPod/i.test(ua)) {
-        alert('iPhone/iPad 添加方法：\n1) 点击浏览器底部「分享」按钮；\n2) 选择「添加到主屏幕」。');
-      } else {
-        alert('添加方法：\n1) 打开浏览器菜单（地址栏右侧 ⋮ / ≡）；\n2) 选择「安装应用」或「添加到主屏幕」。');
-      }
+      openInstallGuide(); // 无法弹系统框 → 图文步骤引导
     });
   }
 
