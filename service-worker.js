@@ -4,7 +4,7 @@
  *  - CDN 资源（Chart.js/XLSX）：优先缓存，失败走网络
  *  - 其他请求：优先网络，失败回退缓存
  */
-var CACHE_VERSION = 'gcsa-v5.0-20261010-install-guide';
+var CACHE_VERSION = 'gcsa-v5.1-20261010-fix-prompt';
 var APP_SHELL = [
   './',
   './index.html',
