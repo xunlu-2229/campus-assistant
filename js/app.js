@@ -130,24 +130,15 @@
       btn.style.display = 'none';
       return;
     }
-    // Android Chrome/Edge：捕获系统安装提示
+    // Android Chrome/Edge：捕获系统安装提示（保留给用户点击时弹，不自动消费）
     window.addEventListener('beforeinstallprompt', function (e) {
       e.preventDefault();
       deferredPrompt = e;
-      // 首次访问自动弹一次系统安装框（提升安装转化，仅一次）
+      // 首次访问自动打开引导层（含"立即安装"按钮，点击时才调系统弹窗，避免丢失安装能力）
       try {
-        if (!window.localStorage.getItem('gcsa_install_prompted')) {
-          window.localStorage.setItem('gcsa_install_prompted', '1');
-          setTimeout(function () {
-            if (deferredPrompt) {
-              var dp = deferredPrompt;
-              deferredPrompt = null;
-              dp.prompt();
-              dp.userChoice.then(function (res) {
-                if (res.outcome === 'accepted') { alert('已添加到桌面，下次可从桌面图标直接打开！'); }
-              }).catch(function () {});
-            }
-          }, 1200);
+        if (!window.localStorage.getItem('gcsa_install_guided')) {
+          window.localStorage.setItem('gcsa_install_guided', '1');
+          setTimeout(function () { openInstallGuide(); }, 1500);
         }
       } catch (e2) { /* localStorage 不可用时忽略 */ }
     });
